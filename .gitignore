@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.log
+*.db
+*.csv
+*.zip
+*.mp4
+.env
+venv/
+.idea/
