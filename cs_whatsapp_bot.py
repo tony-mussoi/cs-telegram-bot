@@ -83,7 +83,7 @@ def whatsapp_reply():
         elif user_selection <= len(theme_options):
             session['stage'] = 'awaiting_data_request'
             session['selected_theme'] = theme_options[user_selection - 1]
-            string = "Which {} data are you looking for \'{}\'?\n{}\n0. to select another Company"
+            string = "Which ** {} data are you looking for \'{}\'?\n{}\n0. to select another Company"
             if session['selected_theme'] == 'Corporate':
                 string = string.format(session['selected_theme'], session['selected_company'], corp_data_fields_list)
             elif session['selected_theme'] == 'Tax':
@@ -99,7 +99,7 @@ def whatsapp_reply():
         company_dict = get_airtable_record(base_id, 'Companies', company_id)
         company_fields_dict = company_dict.get('fields', {})
         # Normalize keys (all lowercase)
-        lookup_dict = {k.lower(): v for k, v in company_fields_dict.items()}del.
+        lookup_dict = {k.lower(): v for k, v in company_fields_dict.items()}
         if user_selection == 0:  # Select a different Company
             session['stage'] = 'awaiting_company_selection'
             string = hello_string.format(session['client_name'], company_list)
