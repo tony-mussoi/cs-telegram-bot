@@ -83,7 +83,7 @@ def whatsapp_reply():
         elif user_selection <= len(theme_options):
             session['stage'] = 'awaiting_data_request'
             session['selected_theme'] = theme_options[user_selection - 1]
-            string = "Which ** {} data are you looking for \'{}\'?\n{}\n0. to select another Company"
+            string = "Which {} data are you looking for \'{}\'?\n{}\n0. to select another Company"
             if session['selected_theme'] == 'Corporate':
                 string = string.format(session['selected_theme'], session['selected_company'], corp_data_fields_list)
             elif session['selected_theme'] == 'Tax':
