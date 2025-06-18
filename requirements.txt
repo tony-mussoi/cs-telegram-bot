@@ -1,6 +1,6 @@
-flask
+Flask>=2.0
 gunicorn
 twilio
 requests
 pyairtable
-python-telegram-bot==22.1
+python-telegram-bot==20.7
