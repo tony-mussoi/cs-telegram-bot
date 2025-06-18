@@ -20,6 +20,7 @@ def fetch_client_bots(base_id, table_name):
     for record in records:
         fields = record.get('fields', {})
         client_phone = fields.get('From number', '').strip()
+        telegram_user_id = fields.get('Telegram ID', '').strip()
         client_name = fields.get('Client name', '')[0].strip()
         company_name = fields.get('Company name', '')[0].strip()
         if not client_phone or not client_name or not company_name:
@@ -27,6 +28,7 @@ def fetch_client_bots(base_id, table_name):
         if client_phone not in user_sessions:
             user_sessions[client_phone] = {
                 'client_phone': client_phone,
+                'telegram_user_id': telegram_user_id,
                 'client_name': client_name,
                 'companies': [],
                 'stage': 'initial_stage',
