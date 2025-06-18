@@ -2,37 +2,52 @@
 # https://github.com/python-telegram-bot/python-telegram-bot/wiki/Extensions---Your-first-Bot
 # https://core.telegram.org/bots/tutorial
 import os
-import logging
 from telegram import Update
-from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
+import telegram
+print(telegram.__version__)
+#help(Application.run_webhook)
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-telegram_app_token = os.environ.get('TELEGRAM_APP_TOKEN')
 
+# Load your bot token and webhook URL (set by ngrok)
+TELEGRAM_APP_TOKEN = os.environ["TELEGRAM_APP_TOKEN"]
+WEBHOOK_URL = os.environ["WEBHOOK_URL"]  # e.g., https://abc123.ngrok-free.app
+PORT = int(os.environ.get("PORT", 5000))
+
+
+# --- Telegram Handlers ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm Cubo bot, please talk to me!")
+    print(">>> HANDLER: /start")
+    await update.message.reply_text("Hi, I'm Cubo bot!")
 
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
+    print(">>> HANDLER: echo")
+    await update.message.reply_text(f"You said: {update.message.text}")
 
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I didn't understand that command.")
+    print(">>> HANDLER: unknown")
+    await update.message.reply_text("Sorry, I didn't understand that command.")
 
-### MAIN ###
-if __name__ == '__main__':
-    print("INSIDE MAIN")
-    application = ApplicationBuilder().token(telegram_app_token).build()
-    echo_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), echo)
-    #caps_handler = CommandHandler('caps', caps)
-    unknown_handler = MessageHandler(filters.COMMAND, unknown)
 
-    start_handler = CommandHandler('start', start)
-    print("BOT STARTED")
+# ✅ 1. Application setup
+# --- App setup ---
+def main():
+    application = Application.builder().token(TELEGRAM_APP_TOKEN).build()
 
-    application.add_handler(start_handler)
-    application.add_handler(echo_handler)
-    application.add_handler(unknown_handler)
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+    application.add_handler(MessageHandler(filters.COMMAND, unknown))
 
-    application.run_polling()
+    print(f">> Starting webhook at: {WEBHOOK_URL}/webhook")
+
+    application.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        url_path="webhook",
+        webhook_url=f"{WEBHOOK_URL}/webhook"
+    )
+
+if __name__ == "__main__":
+    main()
