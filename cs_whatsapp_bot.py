@@ -1,7 +1,6 @@
-import os
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
-from whatsapp_lib import *
+from cs_chatbot_lib import *
 
 # NGROK setup:
 # start NGROK: ngrok http http://localhost:8080
