@@ -1,6 +1,0 @@
-Flask>=2.0
-gunicorn
-twilio
-requests
-pyairtable
-python-telegram-bot[webhooks]==20.7
