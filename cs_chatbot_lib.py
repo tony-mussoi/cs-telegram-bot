@@ -41,7 +41,7 @@ def fetch_client_bots(base_id, table_name):
                 'companies': [],
                 'stage': stage,
                 'selected_company': None,
-                'selected_theme': None,
+                'selected_group': None,
             }
         user_sessions[chat_id]['companies'].append(companies)
     return user_sessions
@@ -75,7 +75,7 @@ def get_airtable_record(base_id, table_name, record_id):
     print(data['fields'])
     return data
 
-# Create new record in Airtable
+""" Create new record in Airtable
 def create_airtable_record(base_id, table_name, data):
     url = f'{AIRTABLE_ENDPOINT}{base_id}/{table_name}'
     # Send a POST request to create the record and parse response
@@ -88,6 +88,7 @@ def create_airtable_record(base_id, table_name, data):
     else:
         print("Failed to create record:", response.json())
     return response.status_code
+"""
 
 # Get file URL from Airtable
 def get_file_url_from_airtable(base_id, table_name, filename):
@@ -143,26 +144,11 @@ def add_new_session(user_sessions, chat_id):
         'companies': [],
         'stage': 'auth_awaiting_start',
         'selected_company': None,
-        'selected_theme': None,
+        'selected_group': None,
     }
     return user_sessions
 
 # Check User bot authorization
-def is_user_authorized_OLD(base_id, table_name, user_id, session):
-    url = f'{AIRTABLE_ENDPOINT}{base_id}/{table_name}'
-    params = {
-        "filterByFormula": f"{{Chat ID}} = '{user_id}'"
-    }
-    response = requests.get(url, headers=headers, params=params)
-    response.raise_for_status()
-    records = response.json().get("records", [])
-    if not records or not records[0]["fields"].get("Authorized"):
-        session['Authorized'] = False
-    else:
-        session['Authorized'] = True
-    return session
-
-
 def is_user_authorized(base_id, table_name, user_id, session):
     url = f'{AIRTABLE_ENDPOINT}{base_id}/{table_name}'
     params = {
@@ -193,3 +179,17 @@ def is_user_authorized(base_id, table_name, user_id, session):
         logging.error(f"Error checking user authorization: {e}")
         session['authorized'] = False
     return session
+
+# Retrieve Action Items, filtered by Company name
+def fetch_action_items(base_id, table_name, company_name):
+    url = f"{AIRTABLE_ENDPOINT}{base_id}/{table_name}"
+    filter_formula = f"{{Company}} = '{company_name}'"
+    params = {
+        "filterByFormula": filter_formula
+    }
+    response = requests.get(url, headers=headers, params=params)
+    response.raise_for_status()
+    records = response.json().get("records", [])
+    action_items = [f"✅  \"{rec['fields'].get('Action Item')}\"\n" for rec in records if
+                    rec.get("fields", {}).get("Action Item")]
+    return "".join(action_items)

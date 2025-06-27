@@ -13,11 +13,16 @@ ADMIN_CHAT_ID = os.environ.get("ADMIN_CHAT_ID")
 MONITORING_CHAT_ID = int(os.environ.get("MONITORING_CHAT_ID"))
 AIRTABLE_CRM_OPS_BASE_ID = os.environ.get('AIRTABLE_CRM_OPS_BASE_ID')
 
+# --- External Links ---
+link_noloco = 'https://cubostart-crm-portal.noloco.co'
+link_gdrive = 'https://drive.google.com/drive/u/0/folders/0ABx5Dp22O-U5Uk9PVA'
+#link_gdrive = 'https://tinyurl.com/cubodrive'
+
 # --- Load User Sessions ---
 user_sessions = fetch_client_bots(AIRTABLE_CRM_OPS_BASE_ID, 'Bots')
 
 # --- Shared Options ---
-theme_options = ['Corporate', 'Tax']
+group_options = ['Corporate', 'Tax', 'Action Items']
 corp_data_fields = ['Company type', 'Company Legal Name', 'Incorporation Country']
 tax_data_fields = ['EIN', 'Tax Country', 'Tax forms']
 
@@ -25,6 +30,15 @@ tax_data_fields = ['EIN', 'Tax Country', 'Tax forms']
 def parse_option_selection(s):
     s = s.strip()
     return int(s) if s.isdigit() and 0 <= int(s) <= 9 else 0
+
+def list_companies(session):
+    company_list = "\n".join(f"{i + 1}. {c}" for i, c in enumerate(session["companies"]))
+    session['stage'] = 'awaiting_company_selection'
+    string = f"Hello {session['clients']}! Please select the company:\n{company_list}\n".replace('[', '').\
+        replace(']', '') + "--------------------------------------------\n" + \
+        f"Link to => <a href=\"{link_noloco}\">Client Portal</a>\n" +\
+        f"Link to => <a href=\"{link_gdrive}\">Client Data Room</a>"
+    return session, string
 
 # Control Bot workflow, and handle data requests
 def run_flow_control(session, incoming_msg):
@@ -36,58 +50,58 @@ def run_flow_control(session, incoming_msg):
         return string, None
 
     if session['stage'] == 'initial_stage':
-        company_list = "\n".join(f"{i + 1}. {c}" for i, c in enumerate(session["companies"]))
-        session['stage'] = 'awaiting_company_selection'
-        string = f"Hello {session['clients']}! Please select the company:\n{company_list}".\
-            replace('[', '').replace(']', '')
+        session, string = list_companies(session)
 
     elif session['stage'] == 'awaiting_company_selection':
+
         sel = parse_option_selection(incoming_msg)
         if sel == 0:
-            session['stage'] = 'awaiting_company_selection'
+            session, string = list_companies(session)
         elif sel <= len(session['companies']):
             session['selected_company'] = session['companies'][sel - 1]
-            session['stage'] = 'awaiting_theme_selection'
+            session['stage'] = 'awaiting_group_selection'
             string = f"Which data segment are you looking for {session['selected_company']}?\n" + \
-                     "\n".join(f"{i + 1}. {t}" for i, t in enumerate(theme_options)) + "\n0. to select another Company"
+                     "\n".join(f"{i + 1}. {t}" for i, t in enumerate(group_options)) + "\n0. to select another Company"
         else:
             string = "Invalid selection."
 
-    elif session['stage'] == 'awaiting_theme_selection':
+    elif session['stage'] == 'awaiting_group_selection':
         sel = parse_option_selection(incoming_msg)
         if sel == 0:
-            session['stage'] = 'awaiting_company_selection'
-        elif sel <= len(theme_options):
-            session['selected_theme'] = theme_options[sel - 1]
+            session, string = list_companies(session)
+        elif sel <= len(group_options):
+            session['selected_group'] = group_options[sel - 1]
             session['stage'] = 'awaiting_data_request'
-            if session['selected_theme'] == 'Corporate':
+            if session['selected_group'] == 'Corporate':
                 string = f"Which Corporate data are you looking for '{session['selected_company']}'?\n" + \
                     "\n".join(f"{i+1}. {f}" for i, f in enumerate(corp_data_fields)) + "\n0. to select another Company"
-            else:
+            elif session['selected_group'] == 'Tax':
                 string = f"Which Tax data are you looking for '{session['selected_company']}'?\n" + \
                     "\n".join(f"{i+1}. {f}" for i, f in enumerate(tax_data_fields)) + "\n0. to select another Company"
+            elif session['selected_group'] == 'Action Items':
+                session['stage'] = 'awaiting_group_selection'
+                company_name = session['selected_company']
+                items_string = fetch_action_items(base_id, 'Action Items', company_name)
+                string = f"\'PENDING\' Action Items for \'{company_name}\':\n" + \
+                         "--------------------------------------------\n" + items_string
         else:
             string = "Invalid selection."
 
     elif session['stage'] == 'awaiting_data_request':
         sel = parse_option_selection(incoming_msg)
         company_name = session['selected_company']
-        theme = session['selected_theme']
+        group = session['selected_group']
         company_id = find_record_id_by_value(base_id, 'Companies', 'Company', company_name)
         company_dict = get_airtable_record(base_id, 'Companies', company_id)
         fields = {k.lower(): v for k, v in company_dict.get('fields', {}).items()}
 
         if sel == 0:
-            session['stage'] = 'awaiting_company_selection'
-            company_list = "\n".join(f"{i + 1}. {c}" for i, c in enumerate(session['companies']))
-            string = f"Hello {session['client_name']}! Please select the company:\n{company_list}"
-
-        elif theme == 'Corporate' and sel <= len(corp_data_fields):
+            session, string = list_companies(session)
+        elif group == 'Corporate' and sel <= len(corp_data_fields):
             lookup = corp_data_fields[sel - 1].lower()
             value = fields.get(lookup)
             string = f"{corp_data_fields[sel - 1]}: {value}"
-
-        elif theme == 'Tax':
+        elif group == 'Tax':
             if sel == 1:
                 value_1 = fields.get('tax id type')
                 value_2 = fields.get('tax id number')
@@ -99,6 +113,8 @@ def run_flow_control(session, incoming_msg):
                 string = f"{tax_data_fields[sel - 1]}: {value}"
             else:
                 string = "Invalid selection."
+        else:
+            string = "Invalid selection."
 
     return string, file_url
 
@@ -135,7 +151,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Handle message, retrieving required data, and manage current workflow
     string, file_url = run_flow_control(session, incoming_msg)
     if string:
-        await update.message.reply_text(string)
+        await update.message.reply_text(string, parse_mode="HTML")
     if file_url:
         await update.message.reply_document(file_url)
 
